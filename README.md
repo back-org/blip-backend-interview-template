@@ -1,232 +1,186 @@
-# Blip Backend Interview Template (Django)
+# 🚀 Blip Backend -- Enterprise-Grade Django API
 
-Backend API template built with **Django 5** + **Django REST Framework**, ready for real-world usage:
-security hardening, environment-based settings, Docker, CI, linting, formatting, monitoring and sensible defaults.
+![Python](https://img.shields.io/badge/Python-3.12-blue)
+![Django](https://img.shields.io/badge/Django-5.0-green)
+![DRF](https://img.shields.io/badge/DRF-REST-red)
+![Docker](https://img.shields.io/badge/Docker-Ready-blue)
+![CI](https://img.shields.io/badge/CI-GitHub_Actions-black)
 
-## Features
+Production-ready Django REST API template designed with:
 
-- Custom user model (email as username)
-- JWT support (SimpleJWT) with **refresh rotation + blacklist**
-- Auth endpoints:
-  - `POST /api/token/` (obtain)
-  - `POST /api/token/refresh/`
-  - `POST /api/token/verify/`
-  - `POST /api/token/blacklist/`
-- OpenAPI / Swagger (drf-spectacular)
-- Static files with WhiteNoise
-- Redis cache (with dev fallback)
-- Health check endpoint: `GET /health/`
-- **Prometheus metrics** endpoint: `GET /metrics`
-- **Request correlation**: `X-Request-ID` header added on every response
-- **Rate limiting** (stricter limit on user creation)
-- **Extra security headers** middleware (CSP / Permissions-Policy / Referrer-Policy)
-- CSP report endpoint: `POST /csp-report/`
-- **JSON logs** option for production observability
-- Optional profiling with **Django Silk** (`SILK_ENABLED=True`)
-- Settings split by environment:
-  - `djangodemo.settings.development`
-  - `djangodemo.settings.production`
+-   🔐 Advanced security hardening
+-   📊 Observability & monitoring
+-   🐳 Dockerized infrastructure
+-   🧪 CI/CD pipeline
+-   🧠 Clean Architecture & best practices
+-   ⚡ Performance-oriented configuration
 
----
+------------------------------------------------------------------------
 
-## Project structure
+## 🧭 Overview
 
-```
-blip-backend-interview-template/
-├─ apps/                       # domain apps
-├─ djangodemo/                 # Django project (settings/urls/wsgi/asgi)
-├─ monitoring/                 # Prometheus scrape config
-├─ .env.example                # environment template (copy to .env)
-├─ docker-compose.yml          # web + postgres + redis
-├─ docker-compose.monitoring.yml
-├─ Dockerfile                  # production-like container
-├─ requirements.txt            # runtime deps
-├─ requirements-dev.txt        # lint/format/security tooling
-└─ .github/workflows/ci.yml    # GitHub Actions
-```
+This backend template is built with:
 
----
+-   Django 5
+-   Django REST Framework
+-   SimpleJWT (rotation + blacklist)
+-   PostgreSQL support
+-   Redis caching
+-   Prometheus metrics
+-   Grafana dashboards
+-   Structured JSON logging
+-   Environment-based configuration
+-   Security middleware (CSP / HSTS / Permissions Policy)
 
-## Quickstart (local)
+Suitable for:
 
-### 1) Create & activate a venv
+-   Interview projects
+-   SaaS MVP
+-   Production-ready API starter
+-   Backend engineering portfolio
 
-```bash
+------------------------------------------------------------------------
+
+## 🏗 Architecture
+
+Client\
+↓\
+Django REST API\
+↓\
+PostgreSQL\
+↓\
+Redis Cache\
+↓\
+Prometheus → Grafana
+
+------------------------------------------------------------------------
+
+## ✨ Key Features
+
+-   Custom User Model (email authentication)
+-   JWT Authentication with rotation & blacklist
+-   Swagger / OpenAPI documentation
+-   Health endpoint: `/health/`
+-   Metrics endpoint: `/metrics`
+-   CSP Report endpoint: `/csp-report/`
+-   Rate limiting protection
+-   X-Request-ID correlation
+-   Optional profiling with Django Silk
+
+------------------------------------------------------------------------
+
+## ⚙️ Quickstart (Local Development)
+
+``` bash
 python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# Linux/macOS:
-source .venv/bin/activate
-```
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-### 2) Install deps
-
-```bash
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
-```
 
-### 3) Configure env
-
-```bash
 cp .env.example .env
-```
 
-By default, the project works with **SQLite** (no external services required).
-
-### 4) Run
-
-```bash
 python manage.py migrate
 python manage.py runserver
 ```
 
-Open:
-- API: `http://127.0.0.1:8000/`
-- Swagger UI: `http://127.0.0.1:8000/schema/swagger-ui/`
-- Health: `http://127.0.0.1:8000/health/`
-- Metrics (Prometheus): `http://127.0.0.1:8000/metrics`
+Access:
 
----
+-   API → http://127.0.0.1:8000/
+-   Swagger → /schema/swagger-ui/
+-   Health → /health/
+-   Metrics → /metrics/
 
-## Run with Docker (Postgres + Redis)
+------------------------------------------------------------------------
 
-1) Copy environment file:
+## 🐳 Docker Setup
 
-```bash
+``` bash
 cp .env.example .env
-```
-
-2) Configure Docker/Postgres variables in `.env`:
-
-```env
-DB_ENGINE=postgres
-DB_HOST=db
-DB_PORT=5432
-REDIS_URL=redis://redis:6379/0
-```
-
-3) Start the stack:
-
-```bash
 docker compose up --build
 ```
 
-The API will be available at `http://127.0.0.1:8000/`.
+Monitoring stack:
 
----
-
-## Monitoring (Prometheus)
-
-This template exposes `/metrics` (via `django-prometheus`).
-
-Run Prometheus alongside the app:
-
-```bash
+``` bash
 docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up --build
 ```
 
-Then open Prometheus:
-- `http://127.0.0.1:9090/`
+Prometheus → http://127.0.0.1:9090\
+Grafana → http://127.0.0.1:3001
 
-### Grafana (dashboards)
+------------------------------------------------------------------------
 
-This template ships with a minimal Grafana provisioning setup + an example dashboard.
+## 🔐 Security Features
 
-Start Prometheus + Grafana:
+-   HSTS enabled
+-   Secure cookies
+-   HTTPS redirect (production)
+-   Content Security Policy (configurable)
+-   JWT blacklist
+-   Rate limiting
+-   Structured JSON logs
+-   Request ID correlation
 
-```bash
-docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up --build
+------------------------------------------------------------------------
+
+## 📊 Observability
+
+-   Prometheus metrics
+-   Grafana dashboard
+-   JSON logs
+-   Request tracing
+-   Optional performance profiling
+
+------------------------------------------------------------------------
+
+## 🧪 Code Quality & CI
+
+Tooling:
+
+-   Ruff
+-   Black
+-   isort
+-   Bandit
+-   pip-audit
+
+CI Pipeline runs:
+
+-   Lint checks
+-   Formatting checks
+-   Django system check
+-   Tests
+-   Security scans
+
+------------------------------------------------------------------------
+
+## 🚀 Production Deployment
+
+Use production settings:
+
+``` bash
+export DJANGO_SETTINGS_MODULE=djangodemo.settings.production
+export DEBUG=0
 ```
 
-Open Grafana:
-- `http://127.0.0.1:3001/` (admin/admin)
+Ensure:
 
----
+-   Strong SECRET_KEY
+-   Proper ALLOWED_HOSTS
+-   HTTPS enabled
+-   CSP validated in report-only mode first
 
-## Environment variables
+------------------------------------------------------------------------
 
-See `.env.example`. Common ones:
+## 📈 Performance
 
-- `DJANGO_ENV` = `development` or `production`
-- `SECRET_KEY` (required)
-- `DEBUG` = `1`/`0`
-- `ALLOWED_HOSTS` = `localhost,127.0.0.1`
-- Database:
-  - `DB_ENGINE` = `sqlite` | `postgres` | `mysql`
-  - `DB_NAME`, `DB_USER`, `DB_PASS`, `DB_HOST`, `DB_PORT`
-- Cache:
-  - `REDIS_URL` = `redis://redis:6379/0` (optional; if missing, local memory cache is used)
-- Observability:
-  - `JSON_LOGS` = `True`/`False`
-- Extra security headers:
-  - `SECURITY_HEADERS_ENABLED` = `True`/`False`
-  - `CSP_ENABLED` = `True`/`False`
-  - `CSP_REPORT_ONLY` = `True`/`False`
-  - `CSP_POLICY` = CSP policy string
-  - `REFERRER_POLICY` / `PERMISSIONS_POLICY`
+-   Database connection pooling (CONN_MAX_AGE)
+-   Redis caching support
+-   DRF pagination
+-   Gunicorn production server
 
-- Profiling:
-  - `SILK_ENABLED` = `True`/`False`
+------------------------------------------------------------------------
 
----
+## 📄 License
 
-## Linting, formatting, pre-commit
-
-```bash
-# Checks
-make lint
-
-# Auto-format
-make format
-
-# Install git hooks
-make precommit
-```
-
-Tools:
-- Ruff (lint + import sorting + formatter)
-- Black (formatter)
-- isort (import sorting)
-- Bandit (basic security checks)
-- pip-audit (dependency vulnerability scan)
-
----
-
-## CI
-
-A GitHub Actions workflow is provided at:
-- `.github/workflows/ci.yml`
-
-It runs:
-- Ruff lint + format check
-- Black/isort checks
-- `python manage.py check`
-- `python manage.py test`
-- Bandit + pip-audit (best-effort)
-
----
-
-## Security notes
-
-- Never commit `.env` (already ignored)
-- Use `djangodemo.settings.production` for deployment (secure cookies, HSTS, HTTPS redirects, etc.)
-- Use a strong `SECRET_KEY` and set `DEBUG=0` in production
-- Enable CSP progressively (`CSP_REPORT_ONLY=True` first)
-- Collect reports at `POST /csp-report/` and tune `CSP_POLICY` before enforcing
-- Review `SECURITY.md` for deployment hardening recommendations
-
----
-
-## Performance notes
-
-- Database connections use `CONN_MAX_AGE` to reuse connections
-- Redis cache is supported via `REDIS_URL`
-- DRF pagination is enabled by default
-- Gunicorn is included for production-style serving (see `Dockerfile`)
-
----
-
-## License
-
-Use freely for interview/home projects.
+Free to use for learning, portfolio and interview purposes.
