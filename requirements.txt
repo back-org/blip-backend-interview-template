@@ -7,6 +7,10 @@ django-cors-headers
 django-environ
 django-extensions
 django-redis
+django-prometheus
+django-ratelimit
+python-json-logger
+django-silk
 djangorestframework
 djangorestframework-simplejwt
 drf-spectacular
@@ -32,3 +36,4 @@ tzdata
 uritemplate
 wheel
 whitenoise
+gunicorn

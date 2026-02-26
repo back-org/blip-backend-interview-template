@@ -32,6 +32,13 @@ env = environ.Env(
     DB_HOST=(str, "localhost"),
     DB_PORT=(str, "5432"),
     REDIS_URL=(str, "redis://localhost:6379/1"),
+    JSON_LOGS=(bool, False),
+    SECURITY_HEADERS_ENABLED=(bool, True),
+    CSP_ENABLED=(bool, False),
+    CSP_REPORT_ONLY=(bool, True),
+    CSP_POLICY=(str, "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"),
+    REFERRER_POLICY=(str, "strict-origin-when-cross-origin"),
+    PERMISSIONS_POLICY=(str, "geolocation=(), microphone=(), camera=()"),
 )
 
 # Load .env if present (never required in CI/CD)
@@ -60,12 +67,15 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    "django_prometheus",
     "django_extensions",
     "corsheaders",
     "rest_framework",
     "rest_framework.authtoken",
     "drf_spectacular",
     "drf_spectacular_sidecar",
+    "rest_framework_simplejwt.token_blacklist",
+    "silk",
 ]
 
 LOCAL_APPS = [
@@ -82,7 +92,9 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # Middleware
 # ---------------------------------------------------------------------
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "apps.utils.middleware.RequestIdMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",  # static files (prod-friendly)
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -90,7 +102,9 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "apps.utils.middleware.SecurityHeadersMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "djangodemo.urls"
@@ -129,7 +143,7 @@ DB_ENGINE = env("DB_ENGINE").lower()
 if DB_ENGINE == "postgres":
     DATABASES = {
         "default": {
-            "ENGINE": "django.db.backends.postgresql",
+            "ENGINE": "django_prometheus.db.backends.postgresql",
             "NAME": env("DB_NAME"),
             "USER": env("DB_USER"),
             "PASSWORD": env("DB_PASS"),
@@ -141,7 +155,7 @@ if DB_ENGINE == "postgres":
 elif DB_ENGINE == "mysql":
     DATABASES = {
         "default": {
-            "ENGINE": "django.db.backends.mysql",
+            "ENGINE": "django_prometheus.db.backends.mysql",
             "NAME": env("DB_NAME"),
             "USER": env("DB_USER"),
             "PASSWORD": env("DB_PASS"),
@@ -154,7 +168,7 @@ elif DB_ENGINE == "mysql":
 else:  # sqlite (default)
     DATABASES = {
         "default": {
-            "ENGINE": "django.db.backends.sqlite3",
+            "ENGINE": "django_prometheus.db.backends.sqlite3",
             "NAME": BASE_DIR / env("DB_NAME"),
         }
     }
@@ -211,6 +225,27 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {"anon": "100/hour", "user": "1000/hour"},
 }
 
+# ---------------------------------------------------------------------
+# JWT (SimpleJWT) hardening
+# ---------------------------------------------------------------------
+# - Rotates refresh tokens
+# - Blacklists old refresh tokens after rotation
+SIMPLE_JWT = {
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    # Keep access tokens short; tune to your needs via env if desired.
+    "ACCESS_TOKEN_LIFETIME": __import__("datetime").timedelta(minutes=10),
+    "REFRESH_TOKEN_LIFETIME": __import__("datetime").timedelta(days=7),
+}
+
+# ---------------------------------------------------------------------
+# Profiling (Silk) - enable only when needed
+# ---------------------------------------------------------------------
+SILK_ENABLED = env.bool("SILK_ENABLED", default=False)
+
+if SILK_ENABLED:
+    MIDDLEWARE.insert(3, "silk.middleware.SilkyMiddleware")
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "DjangoDemo API",
     "DESCRIPTION": "Backend API (JWT) with content management.",
@@ -219,31 +254,56 @@ SPECTACULAR_SETTINGS = {
 }
 
 # ---------------------------------------------------------------------
-# Cache (optional Redis)
+# Extra security headers (CSP, Permissions-Policy, Referrer-Policy)
 # ---------------------------------------------------------------------
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": env("REDIS_URL"),
-        "TIMEOUT": 60,
-    }
-}
+SECURITY_HEADERS_ENABLED = env.bool("SECURITY_HEADERS_ENABLED")
+CSP_ENABLED = env.bool("CSP_ENABLED")
+CSP_REPORT_ONLY = env.bool("CSP_REPORT_ONLY")
+CSP_POLICY = env("CSP_POLICY")
+REFERRER_POLICY = env("REFERRER_POLICY")
+PERMISSIONS_POLICY = env("PERMISSIONS_POLICY")
 
 # ---------------------------------------------------------------------
-# Logging (structured enough for production)
+# Cache (optional Redis)
+# ---------------------------------------------------------------------
+REDIS_URL = env("REDIS_URL", default="")
+
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            "TIMEOUT": 60,
+        }
+    }
+else:
+    # Dev-friendly fallback (no Redis required)
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+
+# ---------------------------------------------------------------------
+# Logging
 # ---------------------------------------------------------------------
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "default": {
-            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
-        }
+        "plain": {"format": "%(asctime)s %(levelname)s %(name)s [%(request_id)s] %(message)s"},
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(levelname)s %(name)s %(request_id)s %(message)s",
+        },
+    },
+    "filters": {
+        "request_id": {"()": "apps.utils.request_id.RequestIdFilter"},
     },
     "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "default"},
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json" if env.bool("JSON_LOGS") else "plain",
+            "filters": ["request_id"],
+        },
     },
     "root": {"handlers": ["console"], "level": "INFO"},
 }
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+DEFAULT_AUTO_FIELD= "django.db.models.BigAutoField"

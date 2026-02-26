@@ -1,114 +1,54 @@
-from django.shortcuts import get_object_or_404
+"""Users API.
 
-from rest_framework import viewsets
+Notes
+-----
+- Uses DRF viewsets for standard CRUD.
+- Adds an extra admin-only endpoint (PermissionView) used in the template.
+- Applies a stricter rate limit to user creation to reduce abuse.
+"""
+
+from __future__ import annotations
+
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
+from rest_framework import status, viewsets
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.parsers import JSONParser
-from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+
+from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from .models import User
 from .serializers import UserSerializer
-from .permissions import *
-
-from drf_spectacular.utils import extend_schema, extend_schema_view
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
-from drf_spectacular.types import OpenApiTypes
 
 
-# Create your views here.
 @extend_schema_view(
-    list=extend_schema(
-        description="Return the list of users.",
-        request=UserSerializer,
-        responses={200: UserSerializer},
-        methods=["get"]
-    ),
-    create=extend_schema(
-        description="Create an user.",
-        request=UserSerializer,
-        responses={201: UserSerializer},
-        methods=["post"]
-    ),
-    retrieve=extend_schema(
-        description="The retrieve action that returns a user selected by `id`.",
-        request=UserSerializer,
-        responses={200: UserSerializer},
-        methods=["get"]
-    ),
-    update=extend_schema(
-        description="Delete a specified user identified by `id`"
-    ),
-    destroy=extend_schema(
-        description="Delete an user."
-    ),
-    partial_update=extend_schema(
-        description="""The retrieve action returns a user selected by `id`."""
-    ),
+    list=extend_schema(description="Return the list of users.", responses={200: UserSerializer}, methods=["get"]),
+    create=extend_schema(description="Create a user.", request=UserSerializer, responses={201: UserSerializer}, methods=["post"]),
+    retrieve=extend_schema(description="Retrieve a user by id.", responses={200: UserSerializer}, methods=["get"]),
+    update=extend_schema(description="Update a user by id.", request=UserSerializer, responses={200: UserSerializer}, methods=["put"]),
+    partial_update=extend_schema(description="Partially update a user by id.", request=UserSerializer, responses={200: UserSerializer}, methods=["patch"]),
+    destroy=extend_schema(description="Delete a user by id.", responses={204: None}, methods=["delete"]),
 )
-class UserViewSet(viewsets.ViewSet):
+class UserViewSet(viewsets.ModelViewSet):
+    """CRUD operations for users."""
+
     permission_classes = (IsAuthenticated,)
     serializer_class = UserSerializer
+    queryset = User.objects.all().order_by("id")
 
-    def list(self, request):
-        queryset = User.objects.all()
-        serializer = UserSerializer(queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def create(self, request, format=None):
-        data = JSONParser().parse(request)
-        serializer = UserSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def retrieve(self, request, pk=None):
-        queryset = User.objects.all()
-        if pk:
-            user = get_object_or_404(queryset, id=pk)
-            serializer = UserSerializer(user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(f'User unknown: {pk}', status=status.HTTP_200_OK)
-
-    def update(self, request, pk=None):
-        data = JSONParser().parse(request)
-        user = User.objects.get(id=pk)
-        print(user)
-        serializer = UserSerializer(user, data=data)
-        print(serializer)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        print(serializer.errors)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def partial_update(self, request, id=None):
-        pass
-
-    def destroy(self, request, pk=None):
-        queryset = User.objects.all()
-        if id:
-            user = get_object_or_404(queryset, id=pk)
-            serializer = UserSerializer(user)
-            if serializer.is_valid():
-                user.delete()
-                return Response(f'User deleted: {pk}', status=status.HTTP_202_ACCEPTED)
-            return Response(f'User unknown: {pk}', status=status.HTTP_204_NO_CONTENT)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    @method_decorator(ratelimit(key="ip", rate="10/m", method="POST", block=True))
+    def create(self, request, *args, **kwargs):
+        """Create a user (rate-limited)."""
+        return super().create(request, *args, **kwargs)
 
 
 class PermissionView(APIView):
-    serializer_class = UserSerializer
+    """Example admin-only endpoint."""
+
     permission_classes = (IsAdminUser,)
 
-    @extend_schema(request=None,
-                   description="User requests only for admin."
-                   )
+    @extend_schema(request=None, description="User requests only for admin.")
     def get(self, request):
-        queryset = User.objects.all()
-        serializer = UserSerializer(queryset, many=True)
+        serializer = UserSerializer(User.objects.all().order_by("id"), many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-        # content = {"message": "You don't have permission to access that ressource"}
-        # return Response(content, status=status.HTTP_403_FORBIDDEN)
-        # raise PermissionDenied(content)
