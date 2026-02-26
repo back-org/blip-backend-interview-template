@@ -1,12 +1,10 @@
-from .base import *
+"""Development settings.
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'medica',
-        'USER': 'root',
-        'PASSWORD': 'Ma$terkey1',
-        'HOST': 'localhost',
-        'PORT': '3306',
-    }
-}
+Safe defaults for local development.
+"""
+from .base import *  # noqa
+
+DEBUG = True
+
+# In dev we often allow localhost + docker hostnames
+ALLOWED_HOSTS = list(set(ALLOWED_HOSTS + ["0.0.0.0"]))  # noqa

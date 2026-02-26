@@ -8,6 +8,8 @@ from django.views.generic import RedirectView
 urlpatterns = [
                   path("schema/", include("apps.spectacular.urls")),
                   path("users/", include("apps.users.urls")),
+                  path("", include("apps.utils.urls")),
+
                   path("", include("apps.pages.urls")),
                   path("admin/", admin.site.urls),
                   re_path(r'^favicon\.ico$', RedirectView.as_view(url='/static/images/favicon-v5.png')),
